@@ -1,0 +1,36 @@
+# Rust
+backend/target/
+**/*.rs.bk
+backend/Cargo.lock
+
+# Database
+*.db
+*.sqlite
+
+# Environment
+.env
+backend/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+backend/logs/
+
+# Node (if frontend added later)
+node_modules/
+dist/
+build/
+
+zerodha-ss/target/
+zerodha-ss/Cargo.lock
+

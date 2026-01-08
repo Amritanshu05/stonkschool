@@ -1,0 +1,25 @@
+# .env file - DO NOT COMMIT THIS FILE
+*.env
+!.env.example
+
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# SQLx offline data
+.sqlx/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
