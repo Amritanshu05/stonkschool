@@ -37,7 +37,17 @@ async fn get_current_user(
     // TODO: Get user_id from session
     let user_id = Uuid::new_v4(); // Placeholder
     
-    let user_data = sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct UserData {
+        id: Uuid,
+        email: String,
+        display_name: String,
+        total_contests: i32,
+        contests_won: i32,
+        wallet_balance: Decimal,
+    }
+    
+    let user_data = sqlx::query_as::<_, UserData>(
         r#"
         SELECT 
             u.id, 
@@ -50,9 +60,9 @@ async fn get_current_user(
         INNER JOIN user_profiles up ON u.id = up.user_id
         INNER JOIN wallets w ON u.id = w.user_id
         WHERE u.id = $1
-        "#,
-        user_id
+        "#
     )
+    .bind(user_id)
     .fetch_one(&state.db.pool)
     .await?;
     

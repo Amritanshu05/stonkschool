@@ -135,7 +135,7 @@ async fn fetch_google_user_info(access_token: &str) -> Result<GoogleUserInfo> {
         .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to parse user info: {}", e)))
 }
 
-#[derive(Debug)]
+#[derive(Debug, sqlx::FromRow)]
 struct User {
     id: Uuid,
     email: String,
@@ -143,20 +143,19 @@ struct User {
 
 async fn get_or_create_user(state: &AppState, user_info: &GoogleUserInfo) -> Result<User> {
     // Try to find existing user
-    let existing_user = sqlx::query_as!(
-        User,
-        "SELECT id, email FROM users WHERE google_id = $1",
-        user_info.sub
+    let existing_user = sqlx::query_as::<_, User>(
+        "SELECT id, email FROM users WHERE google_id = $1"
     )
+    .bind(&user_info.sub)
     .fetch_optional(&state.db.pool)
     .await?;
     
     if let Some(user) = existing_user {
         // Update last login
-        sqlx::query!(
-            "UPDATE users SET last_login_at = NOW() WHERE id = $1",
-            user.id
+        sqlx::query(
+            "UPDATE users SET last_login_at = NOW() WHERE id = $1"
         )
+        .bind(user.id)
         .execute(&state.db.pool)
         .await?;
         
@@ -166,13 +165,13 @@ async fn get_or_create_user(state: &AppState, user_info: &GoogleUserInfo) -> Res
     // Create new user
     let user_id = Uuid::new_v4();
     
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO users (id, google_id, email, created_at, last_login_at) 
-         VALUES ($1, $2, $3, NOW(), NOW())",
-        user_id,
-        user_info.sub,
-        user_info.email
+         VALUES ($1, $2, $3, NOW(), NOW())"
     )
+    .bind(user_id)
+    .bind(&user_info.sub)
+    .bind(&user_info.email)
     .execute(&state.db.pool)
     .await?;
     
@@ -180,40 +179,40 @@ async fn get_or_create_user(state: &AppState, user_info: &GoogleUserInfo) -> Res
     let display_name = user_info.name.clone()
         .unwrap_or_else(|| user_info.email.split('@').next().unwrap_or("User").to_string());
     
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO user_profiles (user_id, display_name, created_at) 
-         VALUES ($1, $2, NOW())",
-        user_id,
-        display_name
+         VALUES ($1, $2, NOW())"
     )
+    .bind(user_id)
+    .bind(&display_name)
     .execute(&state.db.pool)
     .await?;
     
     // Initialize wallet with default balance
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO wallets (user_id, balance, updated_at) 
-         VALUES ($1, $2, NOW())",
-        user_id,
-        rust_decimal::Decimal::new(100000, 2) // 100,000.00 virtual coins
+         VALUES ($1, $2, NOW())"
     )
+    .bind(user_id)
+    .bind(rust_decimal::Decimal::new(100000, 2))
     .execute(&state.db.pool)
     .await?;
     
     // Record initial wallet transaction
-    let wallet_id = sqlx::query_scalar!(
-        "SELECT id FROM wallets WHERE user_id = $1",
-        user_id
+    let wallet_id: Uuid = sqlx::query_scalar(
+        "SELECT id FROM wallets WHERE user_id = $1"
     )
+    .bind(user_id)
     .fetch_one(&state.db.pool)
     .await?;
     
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO wallet_transactions (wallet_id, amount, type, created_at) 
-         VALUES ($1, $2, $3, NOW())",
-        wallet_id,
-        rust_decimal::Decimal::new(100000, 2),
-        "initial"
+         VALUES ($1, $2, $3, NOW())"
     )
+    .bind(wallet_id)
+    .bind(rust_decimal::Decimal::new(100000, 2))
+    .bind("initial")
     .execute(&state.db.pool)
     .await?;
     
@@ -227,13 +226,13 @@ async fn create_session(state: &AppState, user_id: Uuid) -> Result<Uuid> {
     let session_id = Uuid::new_v4();
     let expires_at = Utc::now() + Duration::days(30);
     
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO user_sessions (id, user_id, expires_at, created_at) 
-         VALUES ($1, $2, $3, NOW())",
-        session_id,
-        user_id,
-        expires_at.naive_utc()
+         VALUES ($1, $2, $3, NOW())"
     )
+    .bind(session_id)
+    .bind(user_id)
+    .bind(expires_at.naive_utc())
     .execute(&state.db.pool)
     .await?;
     

@@ -48,15 +48,15 @@ async fn create_replay_session(
     
     let replay_id = Uuid::new_v4();
     
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO replay_sessions (id, user_id, asset_id, start_time, end_time, created_at)
-         VALUES ($1, $2, $3, $4, $5, NOW())",
-        replay_id,
-        user_id,
-        payload.asset_id,
-        from,
-        to
+         VALUES ($1, $2, $3, $4, $5, NOW())"
     )
+    .bind(replay_id)
+    .bind(user_id)
+    .bind(payload.asset_id)
+    .bind(from)
+    .bind(to)
     .execute(&state.db.pool)
     .await?;
     
@@ -79,14 +79,14 @@ async fn place_demo_trade(
     // TODO: Get current price from replay state
     let current_price = rust_decimal::Decimal::new(42000, 2); // Placeholder
     
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO replay_trades (replay_id, side, price, quantity, timestamp)
-         VALUES ($1, $2, $3, $4, NOW())",
-        replay_id,
-        payload.side,
-        current_price,
-        rust_decimal::Decimal::from_f64_retain(payload.quantity).unwrap()
+         VALUES ($1, $2, $3, $4, NOW())"
     )
+    .bind(replay_id)
+    .bind(&payload.side)
+    .bind(current_price)
+    .bind(rust_decimal::Decimal::from_f64_retain(payload.quantity).unwrap())
     .execute(&state.db.pool)
     .await?;
     

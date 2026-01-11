@@ -1,1 +1,1 @@
-fantasy trading and education platform
+a fantasy trading and education platform.

@@ -36,10 +36,15 @@ async fn get_wallet_balance(
 ) -> Result<Json<WalletResponse>> {
     let user_id = Uuid::new_v4(); // Placeholder
     
-    let wallet = sqlx::query!(
-        "SELECT balance FROM wallets WHERE user_id = $1",
-        user_id
+    #[derive(sqlx::FromRow)]
+    struct WalletData {
+        balance: Decimal,
+    }
+    
+    let wallet = sqlx::query_as::<_, WalletData>(
+        "SELECT balance FROM wallets WHERE user_id = $1"
     )
+    .bind(user_id)
     .fetch_one(&state.db.pool)
     .await?;
     
@@ -55,7 +60,15 @@ async fn get_transactions(
 ) -> Result<Json<Vec<TransactionResponse>>> {
     let user_id = Uuid::new_v4(); // Placeholder
     
-    let transactions = sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct TransactionData {
+        id: Uuid,
+        amount: Decimal,
+        r#type: String,
+        created_at: NaiveDateTime,
+    }
+    
+    let transactions = sqlx::query_as::<_, TransactionData>(
         r#"
         SELECT wt.id, wt.amount, wt.type, wt.created_at
         FROM wallet_transactions wt
@@ -63,9 +76,9 @@ async fn get_transactions(
         WHERE w.user_id = $1
         ORDER BY wt.created_at DESC
         LIMIT 50
-        "#,
-        user_id
+        "#
     )
+    .bind(user_id)
     .fetch_all(&state.db.pool)
     .await?;
     

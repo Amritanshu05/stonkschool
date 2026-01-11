@@ -13,7 +13,7 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 struct AssetResponse {
     id: Uuid,
     symbol: String,
@@ -31,19 +31,17 @@ async fn list_assets(
     Query(params): Query<AssetsQuery>,
 ) -> Result<Json<Vec<AssetResponse>>> {
     let assets = if let Some(asset_type) = params.r#type {
-        sqlx::query_as!(
-            AssetResponse,
+        sqlx::query_as::<_, AssetResponse>(
             r#"SELECT id, symbol, name, asset_type as "type" 
                FROM assets 
                WHERE is_active = true AND asset_type = $1
-               ORDER BY symbol"#,
-            asset_type
+               ORDER BY symbol"#
         )
+        .bind(asset_type)
         .fetch_all(&state.db.pool)
         .await?
     } else {
-        sqlx::query_as!(
-            AssetResponse,
+        sqlx::query_as::<_, AssetResponse>(
             r#"SELECT id, symbol, name, asset_type as "type" 
                FROM assets 
                WHERE is_active = true

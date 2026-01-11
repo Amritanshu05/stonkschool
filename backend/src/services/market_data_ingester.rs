@@ -29,7 +29,14 @@ impl MarketDataIngester {
     
     /// Load asset mappings from database
     pub async fn load_asset_mappings(&self) -> Result<()> {
-        let assets = sqlx::query!(
+        #[derive(sqlx::FromRow)]
+        struct AssetData {
+            id: Uuid,
+            symbol: String,
+            exchange: String,
+        }
+        
+        let assets = sqlx::query_as::<_, AssetData>(
             r#"
             SELECT id, symbol, exchange 
             FROM assets 
@@ -66,7 +73,8 @@ impl MarketDataIngester {
         let kite = KiteConnect::new(self.api_key.clone(), self.access_token.clone());
         let config = StreamConfig::new(instruments).mode(Mode::Full);
         
-        let mut stream = kite.stream(config).await?;
+        let mut stream = kite.stream(config).await
+            .map_err(|e| anyhow::anyhow!("Failed to connect to Kite stream: {}", e))?;
         
         tracing::info!("Connected to Kite WebSocket");
         
@@ -97,7 +105,7 @@ impl MarketDataIngester {
         // In production, you'd aggregate ticks into candles
         let price = Decimal::from_f64_retain(tick.ltp).unwrap_or_default();
         
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO market_prices (asset_id, timestamp, open, high, low, close, volume)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -106,15 +114,15 @@ impl MarketDataIngester {
                 high = GREATEST(market_prices.high, EXCLUDED.high),
                 low = LEAST(market_prices.low, EXCLUDED.low),
                 close = EXCLUDED.close
-            "#,
-            asset_id,
-            timestamp,
-            price,
-            price,
-            price,
-            price,
-            tick.volume.map(|v| Decimal::from(v))
+            "#
         )
+        .bind(asset_id)
+        .bind(timestamp)
+        .bind(price)
+        .bind(price)
+        .bind(price)
+        .bind(price)
+        .bind(tick.volume.map(|v| Decimal::from(v)))
         .execute(&self.pool)
         .await?;
         

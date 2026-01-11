@@ -21,7 +21,7 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 struct ContestListItem {
     id: Uuid,
     title: String,
@@ -44,7 +44,7 @@ struct ContestDetails {
     assets: Vec<AssetInfo>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 struct AssetInfo {
     id: Uuid,
     symbol: String,
@@ -91,8 +91,7 @@ struct LeaderboardEntry {
 async fn list_contests(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<ContestListItem>>> {
-    let contests = sqlx::query_as!(
-        ContestListItem,
+    let contests = sqlx::query_as::<_, ContestListItem>(
         r#"
         SELECT id, title, track, entry_fee, start_time, status
         FROM contests
@@ -110,28 +109,39 @@ async fn get_contest_details(
     State(state): State<AppState>,
     Path(contest_id): Path<Uuid>,
 ) -> Result<Json<ContestDetails>> {
-    let contest = sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct ContestRow {
+        id: Uuid,
+        title: String,
+        track: String,
+        entry_fee: Decimal,
+        virtual_capital: Decimal,
+        start_time: NaiveDateTime,
+        end_time: NaiveDateTime,
+        status: String,
+    }
+    
+    let contest = sqlx::query_as::<_, ContestRow>(
         r#"
         SELECT id, title, track, entry_fee, virtual_capital, start_time, end_time, status
         FROM contests
         WHERE id = $1
-        "#,
-        contest_id
+        "#
     )
+    .bind(contest_id)
     .fetch_optional(&state.db.pool)
     .await?
     .ok_or(AppError::NotFound)?;
     
-    let assets = sqlx::query_as!(
-        AssetInfo,
+    let assets = sqlx::query_as::<_, AssetInfo>(
         r#"
         SELECT a.id, a.symbol
         FROM assets a
         INNER JOIN contest_assets ca ON a.id = ca.asset_id
         WHERE ca.contest_id = $1
-        "#,
-        contest_id
+        "#
     )
+    .bind(contest_id)
     .fetch_all(&state.db.pool)
     .await?;
     
@@ -155,10 +165,17 @@ async fn join_contest(
     let user_id = Uuid::new_v4(); // TODO: Get from session
     
     // Get contest details
-    let contest = sqlx::query!(
-        "SELECT entry_fee, virtual_capital, status FROM contests WHERE id = $1",
-        contest_id
+    #[derive(sqlx::FromRow)]
+    struct ContestJoinInfo {
+        entry_fee: Decimal,
+        virtual_capital: Decimal,
+        status: String,
+    }
+    
+    let contest = sqlx::query_as::<_, ContestJoinInfo>(
+        "SELECT entry_fee, virtual_capital, status FROM contests WHERE id = $1"
     )
+    .bind(contest_id)
     .fetch_optional(&state.db.pool)
     .await?
     .ok_or(AppError::NotFound)?;
@@ -169,10 +186,16 @@ async fn join_contest(
     }
     
     // Check user balance
-    let wallet = sqlx::query!(
-        "SELECT id, balance FROM wallets WHERE user_id = $1",
-        user_id
+    #[derive(sqlx::FromRow)]
+    struct WalletInfo {
+        id: Uuid,
+        balance: Decimal,
+    }
+    
+    let wallet = sqlx::query_as::<_, WalletInfo>(
+        "SELECT id, balance FROM wallets WHERE user_id = $1"
     )
+    .bind(user_id)
     .fetch_one(&state.db.pool)
     .await?;
     
@@ -181,35 +204,35 @@ async fn join_contest(
     }
     
     // Debit entry fee
-    sqlx::query!(
-        "UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2",
-        contest.entry_fee,
-        wallet.id
+    sqlx::query(
+        "UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2"
     )
+    .bind(contest.entry_fee)
+    .bind(wallet.id)
     .execute(&state.db.pool)
     .await?;
     
     // Record transaction
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO wallet_transactions (wallet_id, amount, type, reference_id, created_at)
-         VALUES ($1, $2, 'entry_fee', $3, NOW())",
-        wallet.id,
-        -contest.entry_fee,
-        contest_id
+         VALUES ($1, $2, 'entry_fee', $3, NOW())"
     )
+    .bind(wallet.id)
+    .bind(-contest.entry_fee)
+    .bind(contest_id)
     .execute(&state.db.pool)
     .await?;
     
     // Create participant record
     let participant_id = Uuid::new_v4();
     
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO contest_participants (id, contest_id, user_id, joined_at)
-         VALUES ($1, $2, $3, NOW())",
-        participant_id,
-        contest_id,
-        user_id
+         VALUES ($1, $2, $3, NOW())"
     )
+    .bind(participant_id)
+    .bind(contest_id)
+    .bind(user_id)
     .execute(&state.db.pool)
     .await?;
     
@@ -233,16 +256,23 @@ async fn lock_allocation(
     }
     
     // Get participant
-    let participant = sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct ParticipantInfo {
+        id: Uuid,
+        locked_at: Option<NaiveDateTime>,
+        status: String,
+    }
+    
+    let participant = sqlx::query_as::<_, ParticipantInfo>(
         r#"
         SELECT cp.id, cp.locked_at, c.status
         FROM contest_participants cp
         INNER JOIN contests c ON cp.contest_id = c.id
         WHERE cp.contest_id = $1 AND cp.user_id = $2
-        "#,
-        contest_id,
-        user_id
+        "#
     )
+    .bind(contest_id)
+    .bind(user_id)
     .fetch_optional(&state.db.pool)
     .await?
     .ok_or(AppError::NotFound)?;
@@ -259,22 +289,22 @@ async fn lock_allocation(
     
     // Insert allocations
     for allocation in payload.allocations {
-        sqlx::query!(
+        sqlx::query(
             "INSERT INTO contest_allocations (participant_id, asset_id, allocation_pct)
-             VALUES ($1, $2, $3)",
-            participant.id,
-            allocation.asset_id,
-            allocation.pct
+             VALUES ($1, $2, $3)"
         )
+        .bind(participant.id)
+        .bind(allocation.asset_id)
+        .bind(allocation.pct)
         .execute(&state.db.pool)
         .await?;
     }
     
     // Mark as locked
-    sqlx::query!(
-        "UPDATE contest_participants SET locked_at = NOW() WHERE id = $1",
-        participant.id
+    sqlx::query(
+        "UPDATE contest_participants SET locked_at = NOW() WHERE id = $1"
     )
+    .bind(participant.id)
     .execute(&state.db.pool)
     .await?;
     
@@ -287,7 +317,14 @@ async fn get_contest_status(
 ) -> Result<Json<ContestStatusResponse>> {
     let user_id = Uuid::new_v4(); // TODO: Get from session
     
-    let result = sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct StatusResult {
+        status: String,
+        current_rank: Option<i32>,
+        portfolio_value: Option<Decimal>,
+    }
+    
+    let result = sqlx::query_as::<_, StatusResult>(
         r#"
         SELECT 
             c.status,
@@ -296,10 +333,10 @@ async fn get_contest_status(
         FROM contests c
         LEFT JOIN contest_leaderboard cl ON c.id = cl.contest_id AND cl.user_id = $2
         WHERE c.id = $1
-        "#,
-        contest_id,
-        user_id
+        "#
     )
+    .bind(contest_id)
+    .bind(user_id)
     .fetch_optional(&state.db.pool)
     .await?
     .ok_or(AppError::NotFound)?;
@@ -317,15 +354,22 @@ async fn get_contest_results(
 ) -> Result<Json<ContestResultsResponse>> {
     let user_id = Uuid::new_v4(); // TODO: Get from session
     
-    let result = sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct ResultRow {
+        final_rank: Option<i32>,
+        final_value: Option<Decimal>,
+        payout: Option<Decimal>,
+    }
+    
+    let result = sqlx::query_as::<_, ResultRow>(
         r#"
         SELECT final_rank, final_value, payout
         FROM contest_participants
         WHERE contest_id = $1 AND user_id = $2
-        "#,
-        contest_id,
-        user_id
+        "#
     )
+    .bind(contest_id)
+    .bind(user_id)
     .fetch_optional(&state.db.pool)
     .await?
     .ok_or(AppError::NotFound)?;
@@ -341,7 +385,14 @@ async fn get_leaderboard(
     State(state): State<AppState>,
     Path(contest_id): Path<Uuid>,
 ) -> Result<Json<Vec<LeaderboardEntry>>> {
-    let entries = sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct LeaderboardRow {
+        rank: i32,
+        user: String,
+        value: Decimal,
+    }
+    
+    let entries = sqlx::query_as::<_, LeaderboardRow>(
         r#"
         SELECT 
             cl.rank,
@@ -353,9 +404,9 @@ async fn get_leaderboard(
         WHERE cl.contest_id = $1
         ORDER BY cl.rank ASC
         LIMIT 100
-        "#,
-        contest_id
+        "#
     )
+    .bind(contest_id)
     .fetch_all(&state.db.pool)
     .await?;
     

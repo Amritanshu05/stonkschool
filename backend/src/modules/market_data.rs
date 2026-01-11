@@ -15,7 +15,7 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 struct PriceCandle {
     timestamp: NaiveDateTime,
     open: Decimal,
@@ -44,18 +44,17 @@ async fn get_historical_prices(
         .or_else(|_| chrono::NaiveDateTime::parse_from_str(&params.to, "%Y-%m-%dT%H:%M:%SZ"))
         .map_err(|_| AppError::Validation("Invalid 'to' timestamp format".to_string()))?;
     
-    let prices = sqlx::query_as!(
-        PriceCandle,
+    let prices = sqlx::query_as::<_, PriceCandle>(
         r#"
         SELECT timestamp, open, high, low, close
         FROM market_prices
         WHERE asset_id = $1 AND timestamp BETWEEN $2 AND $3
         ORDER BY timestamp ASC
-        "#,
-        asset_id,
-        from,
-        to
+        "#
     )
+    .bind(asset_id)
+    .bind(from)
+    .bind(to)
     .fetch_all(&state.db.pool)
     .await?;
     

@@ -43,10 +43,17 @@ async fn handle_replay_socket(mut socket: WebSocket, replay_id: Uuid, state: App
     tracing::info!("New WebSocket connection for replay: {}", replay_id);
     
     // Fetch replay session details
-    let replay = match sqlx::query!(
-        "SELECT asset_id, start_time, end_time FROM replay_sessions WHERE id = $1",
-        replay_id
+    #[derive(sqlx::FromRow)]
+    struct ReplayData {
+        asset_id: Uuid,
+        start_time: chrono::NaiveDateTime,
+        end_time: chrono::NaiveDateTime,
+    }
+    
+    let replay = match sqlx::query_as::<_, ReplayData>(
+        "SELECT asset_id, start_time, end_time FROM replay_sessions WHERE id = $1"
     )
+    .bind(replay_id)
     .fetch_optional(&state.db.pool)
     .await
     {
@@ -64,17 +71,23 @@ async fn handle_replay_socket(mut socket: WebSocket, replay_id: Uuid, state: App
     };
     
     // Fetch price data
-    let prices = match sqlx::query!(
+    #[derive(sqlx::FromRow)]
+    struct PriceData {
+        timestamp: chrono::NaiveDateTime,
+        close: rust_decimal::Decimal,
+    }
+    
+    let prices = match sqlx::query_as::<_, PriceData>(
         r#"
         SELECT timestamp, close
         FROM market_prices
         WHERE asset_id = $1 AND timestamp BETWEEN $2 AND $3
         ORDER BY timestamp ASC
-        "#,
-        replay.asset_id,
-        replay.start_time,
-        replay.end_time
+        "#
     )
+    .bind(replay.asset_id)
+    .bind(replay.start_time)
+    .bind(replay.end_time)
     .fetch_all(&state.db.pool)
     .await
     {
@@ -120,7 +133,14 @@ async fn handle_contest_socket(mut socket: WebSocket, contest_id: Uuid, state: A
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         
         // Fetch current leaderboard
-        let leaderboard = match sqlx::query!(
+        #[derive(sqlx::FromRow)]
+        struct LeaderboardData {
+            rank: i32,
+            display_name: String,
+            portfolio_value: rust_decimal::Decimal,
+        }
+        
+        let leaderboard = match sqlx::query_as::<_, LeaderboardData>(
             r#"
             SELECT cl.rank, up.display_name, cl.portfolio_value
             FROM contest_leaderboard cl
@@ -129,9 +149,9 @@ async fn handle_contest_socket(mut socket: WebSocket, contest_id: Uuid, state: A
             WHERE cl.contest_id = $1
             ORDER BY cl.rank ASC
             LIMIT 10
-            "#,
-            contest_id
+            "#
         )
+        .bind(contest_id)
         .fetch_all(&state.db.pool)
         .await
         {
