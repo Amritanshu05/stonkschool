@@ -1,0 +1,58 @@
+# Rust
+backend/target/
+**/*.rs.bk
+backend/Cargo.lock
+
+# Database
+*.db
+*.sqlite
+
+# Environment
+.env
+backend/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+backend/logs/
+
+# Node (if frontend added later)
+node_modules/
+dist/
+build/
+
+zerodha-ss/target/
+zerodha-ss/Cargo.lock
+
+Documents/
+ARCHITECTURE_DIAGRAMS.md
+BACKEND_RUNNING_STATUS.md
+DOCUMENTATION_UPDATE_LOG.md
+HOW_IT_WORKS.md
+MVP_TESTING_GUIDE.md
+NEXT_STEPS.md
+PATH_TO_PRODUCTION.md
+PRODUCTION_DEPLOYMENT.md
+PROJECT_SUMMARY.md
+QUICK_REFERENCE.md
+REPOSITORY_STRUCTURE.md
+SELF_CONTAINED_CONFIRMATION.md
+TECHNICAL_CHANGES.md
+VENDORED_DEPENDENCIES.md
+VERIFICATION_REPORT.md
+
+
+
+
+postgresql/
+*.dll
