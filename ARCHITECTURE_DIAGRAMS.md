@@ -1,0 +1,531 @@
+# StonkSchool Architecture Diagrams
+
+## System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         FRONTEND                                 │
+│                    (React / Next.js)                            │
+│                                                                  │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
+│  │  Landing   │  │ Dashboard  │  │  Contest   │               │
+│  │   Page     │  │  & Learn   │  │   Live     │               │
+│  └────────────┘  └────────────┘  └────────────┘               │
+│                                                                  │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
+│  │   Replay   │  │  Profile   │  │Leaderboard │               │
+│  │  & Trading │  │  & Wallet  │  │  & Results │               │
+│  └────────────┘  └────────────┘  └────────────┘               │
+└──────────────────────┬──────────────────┬───────────────────────┘
+                       │ HTTPS            │ WebSocket
+                       │ REST API         │ Real-time
+                       ▼                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    BACKEND (Rust + Axum)                         │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │               API GATEWAY / ROUTER                        │  │
+│  │  • Auth middleware • Rate limiting • CORS • Logging       │  │
+│  └──────────────────────┬───────────────────────────────────┘  │
+│                         │                                        │
+│  ┌──────────────────────┴───────────────────────────────────┐  │
+│  │                  CORE MODULES                             │  │
+│  │                                                            │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐               │  │
+│  │  │   Auth   │  │  Users   │  │  Wallet  │               │  │
+│  │  │  Module  │  │ Service  │  │ Service  │               │  │
+│  │  └──────────┘  └──────────┘  └──────────┘               │  │
+│  │                                                            │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐               │  │
+│  │  │  Assets  │  │  Market  │  │  Replay  │               │  │
+│  │  │ Service  │  │   Data   │  │  Engine  │               │  │
+│  │  └──────────┘  └──────────┘  └──────────┘               │  │
+│  │                                                            │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐               │  │
+│  │  │ Contest  │  │ Contest  │  │WebSocket │               │  │
+│  │  │   Mgmt   │  │  Engine  │  │ Gateway  │               │  │
+│  │  └──────────┘  └──────────┘  └──────────┘               │  │
+│  └────────────────────────────────────────────────────────────┘│
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │           BACKGROUND SERVICES                             │  │
+│  │                                                            │  │
+│  │  ┌────────────────────────────────────────────┐          │  │
+│  │  │     Market Data Ingester                   │          │  │
+│  │  │  • Connects to zerodha-ss                  │          │  │
+│  │  │  • Streams live ticks                      │          │  │
+│  │  │  • Stores OHLC candles                     │          │  │
+│  │  └────────────────────────────────────────────┘          │  │
+│  └────────────────────────────────────────────────────────────┘│
+└──────────────────────┬──────────────────┬───────────────────────┘
+                       │                  │
+                       ▼                  ▼
+        ┌──────────────────────┐  ┌──────────────────────┐
+        │    PostgreSQL        │  │    zerodha-ss        │
+        │                      │  │  (Rust Library)      │
+        │  • Users & Auth      │  │                      │
+        │  • Wallets           │  │  • Kite WebSocket    │
+        │  • Contests          │  │  • Binary parsing    │
+        │  • Market Prices     │  │  • Tick streaming    │
+        │  • Replay Sessions   │  │                      │
+        └──────────────────────┘  └──────────────────────┘
+```
+
+---
+
+## Contest Lifecycle Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   CONTEST LIFECYCLE                              │
+└─────────────────────────────────────────────────────────────────┘
+
+   [DRAFT]
+      │
+      │ Admin publishes
+      ▼
+   [UPCOMING]
+      │
+      │ Join window opens
+      ▼
+   [JOINING_OPEN] ◄───┐
+      │               │
+      │ Users join    │ (Multiple users)
+      │               │
+      └───────────────┘
+      │
+      │ Join window closes
+      ▼
+   [ALLOCATION_LOCKED] ◄───┐
+      │                    │
+      │ Users lock         │ (Multiple users)
+      │ allocations        │
+      │                    │
+      └────────────────────┘
+      │
+      │ All locked / deadline reached
+      ▼
+   [LIVE]
+      │ • Market prices stream
+      │ • Portfolio values calculated
+      │ • Leaderboard updates
+      │
+      │ Contest duration ends
+      ▼
+   [ENDED]
+      │ • Final rankings computed
+      │ • Prizes calculated
+      │
+      │ Settlement complete
+      ▼
+   [SETTLED]
+      │ • Wallets credited
+      │ • Results published
+      │
+      ▼
+   (Terminal State)
+
+   ANY STATE ──admin_cancel──> [CANCELLED]
+                                   │
+                                   │ • Entry fees refunded
+                                   │ • Users notified
+                                   │
+                                   ▼
+                              (Terminal State)
+```
+
+---
+
+## User Journey: Joining a Contest
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              USER CONTEST PARTICIPATION FLOW                     │
+└─────────────────────────────────────────────────────────────────┘
+
+   START
+     │
+     ▼
+┌──────────────┐
+│ User browses │
+│  contests    │
+└──────┬───────┘
+       │
+       │ Selects contest
+       ▼
+┌──────────────┐
+│ View contest │
+│   details    │
+│              │
+│ • Assets     │
+│ • Entry fee  │
+│ • Duration   │
+│ • Rules      │
+└──────┬───────┘
+       │
+       │ Clicks "Join"
+       ▼
+┌──────────────┐        ┌────────────────┐
+│Check wallet  │───X───>│ Insufficient   │
+│   balance    │        │ balance error  │
+└──────┬───────┘        └────────────────┘
+       │ ✓ Sufficient
+       ▼
+┌──────────────┐
+│ Debit entry  │
+│   fee from   │
+│   wallet     │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ User joined  │
+│ successfully │
+│              │
+│ Given virtual│
+│ capital      │
+└──────┬───────┘
+       │
+       │ Allocation period
+       ▼
+┌──────────────┐
+│ User sets    │
+│ allocation % │
+│ for each     │
+│ asset        │
+│              │
+│ BTC: 60%     │
+│ ETH: 40%     │
+└──────┬───────┘
+       │
+       │ Validates sum = 100%
+       ▼
+┌──────────────┐        ┌────────────────┐
+│ Lock         │───X───>│ Validation     │
+│ allocation   │        │ error          │
+└──────┬───────┘        └────────────────┘
+       │ ✓ Valid
+       ▼
+┌──────────────┐
+│ Allocation   │
+│ locked       │
+│              │
+│ (Immutable)  │
+└──────┬───────┘
+       │
+       │ Wait for contest start
+       ▼
+┌──────────────┐
+│ Contest LIVE │
+│              │
+│ • Portfolio  │
+│   value      │
+│   updates    │
+│ • Rank shown │
+│ • Leaderboard│
+└──────┬───────┘
+       │
+       │ Contest ends
+       ▼
+┌──────────────┐
+│ Final rank   │
+│   & payout   │
+│   displayed  │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ Wallet       │
+│ credited     │
+│ (if won)     │
+└──────────────┘
+       │
+       ▼
+     END
+```
+
+---
+
+## Data Flow: Market Replay
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   REPLAY ENGINE FLOW                             │
+└─────────────────────────────────────────────────────────────────┘
+
+   User Request
+       │
+       ▼
+   ┌─────────────────┐
+   │ POST /replay    │
+   │                 │
+   │ asset_id: BTC   │
+   │ from: 2024-...  │
+   │ to: 2024-...    │
+   └────────┬────────┘
+            │
+            │ Create session
+            ▼
+   ┌─────────────────────────┐
+   │ Database                │
+   │ INSERT replay_session   │
+   └────────┬────────────────┘
+            │
+            │ Return session_id + ws_url
+            ▼
+   ┌─────────────────┐
+   │ Response        │
+   │ ws_url:         │
+   │ /ws/replay/uuid │
+   └────────┬────────┘
+            │
+            │ User connects WebSocket
+            ▼
+   ┌──────────────────────────────┐
+   │ WebSocket Handler            │
+   │                              │
+   │ 1. Fetch replay session      │
+   │ 2. Query market_prices       │
+   │    WHERE asset_id & time     │
+   │ 3. Stream prices to client   │
+   └────────┬─────────────────────┘
+            │
+            │ For each price tick
+            ▼
+   ┌──────────────────┐
+   │ Send via WS:     │
+   │                  │
+   │ {               │
+   │   timestamp: .. │
+   │   price: 42050  │
+   │ }               │
+   └────────┬─────────┘
+            │
+            │ User places trade
+            ▼
+   ┌─────────────────────────┐
+   │ POST /replay/:id/trade  │
+   │                         │
+   │ side: "buy"            │
+   │ quantity: 10           │
+   └────────┬────────────────┘
+            │
+            │ Record trade
+            ▼
+   ┌─────────────────────────┐
+   │ INSERT replay_trades    │
+   │                         │
+   │ • Calculate P&L        │
+   │ • Update portfolio     │
+   └─────────────────────────┘
+            │
+            ▼
+   ┌─────────────────┐
+   │ Response        │
+   │ success: true   │
+   └─────────────────┘
+```
+
+---
+
+## zerodha-ss Integration Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              LIVE MARKET DATA PIPELINE                           │
+└─────────────────────────────────────────────────────────────────┘
+
+   Zerodha Kite Platform
+   (Real Stock Exchange Data)
+            │
+            │ WebSocket Connection
+            │ wss://ws.kite.trade/
+            ▼
+   ┌─────────────────────────┐
+   │  zerodha-ss Library     │
+   │  (Rust Crate)           │
+   │                         │
+   │  • KiteConnect client   │
+   │  • Binary parser        │
+   │  • Tick data models     │
+   │  • Stream management    │
+   └────────┬────────────────┘
+            │
+            │ Stream<Item=Tick>
+            ▼
+   ┌────────────────────────────────┐
+   │  Market Data Ingester Service  │
+   │  (backend/services)            │
+   │                                │
+   │  1. Maps instrument tokens     │
+   │     to asset IDs               │
+   │                                │
+   │  2. Processes tick data:       │
+   │     • instrument_token         │
+   │     • ltp (last traded price)  │
+   │     • volume                   │
+   │     • ohlc                     │
+   │     • market depth             │
+   │                                │
+   │  3. Aggregates into candles    │
+   │     (1-min OHLC)               │
+   └────────┬───────────────────────┘
+            │
+            │ SQL INSERT
+            ▼
+   ┌─────────────────────────┐
+   │  PostgreSQL             │
+   │  market_prices table    │
+   │                         │
+   │  (asset_id, timestamp,  │
+   │   open, high, low,      │
+   │   close, volume)        │
+   └────────┬────────────────┘
+            │
+            │ Query
+            ▼
+   ┌─────────────────────────┐
+   │  Replay Engine          │
+   │  Contest Engine         │
+   │                         │
+   │  • Fetch historical     │
+   │  • Stream to users      │
+   │  • Calculate portfolio  │
+   └─────────────────────────┘
+```
+
+---
+
+## Database Entity Relationship
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   DATABASE SCHEMA OVERVIEW                       │
+└─────────────────────────────────────────────────────────────────┘
+
+   ┌──────────┐         ┌──────────────┐
+   │  users   │─────1:1─│user_profiles │
+   └────┬─────┘         └──────────────┘
+        │
+        │1
+        │
+        │N
+   ┌────┴─────┐         ┌──────────────────┐
+   │ wallets  │─────1:N─│wallet_transactions│
+   └──────────┘         └──────────────────┘
+
+   ┌──────────┐
+   │  assets  │─────────┐
+   └────┬─────┘         │
+        │               │1
+        │1              │
+        │               │N
+        │N         ┌────┴──────────┐
+   ┌────┴─────────┐│contest_assets │
+   │market_prices ││               │
+   └──────────────┘└────┬──────────┘
+                        │N
+                        │
+                        │1
+                   ┌────┴───────┐
+                   │  contests  │
+                   └────┬───────┘
+                        │1
+                        │
+                        │N
+          ┌─────────────┴──────────────┐
+          │                            │
+   ┌──────┴────────────┐  ┌───────────┴──────┐
+   │contest_participants│  │contest_leaderboard│
+   └──────┬────────────┘  └──────────────────┘
+          │1
+          │
+          │N
+   ┌──────┴───────────┐
+   │contest_allocations│
+   └──────────────────┘
+
+   ┌──────────────┐         ┌──────────────┐
+   │replay_sessions│─────1:N─│replay_trades │
+   └──────────────┘         └──────────────┘
+```
+
+---
+
+## API Request/Response Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 TYPICAL API REQUEST FLOW                         │
+└─────────────────────────────────────────────────────────────────┘
+
+   Client (Browser)
+       │
+       │ HTTP Request
+       │ Authorization: Cookie
+       ▼
+   ┌────────────────┐
+   │  Axum Router   │
+   │  (main.rs)     │
+   └───────┬────────┘
+           │
+           │ Route match
+           ▼
+   ┌────────────────┐
+   │  Middleware    │
+   │  • Auth check  │
+   │  • Rate limit  │
+   │  • CORS        │
+   │  • Logging     │
+   └───────┬────────┘
+           │
+           │ Extract user_id from session
+           ▼
+   ┌────────────────┐
+   │  Handler       │
+   │  (module/*rs)  │
+   │                │
+   │  1. Validate   │
+   │  2. Query DB   │
+   │  3. Business   │
+   │     logic      │
+   └───────┬────────┘
+           │
+           │ Database query
+           ▼
+   ┌────────────────┐
+   │  SQLx          │
+   │  (db.rs)       │
+   └───────┬────────┘
+           │
+           │ SQL query
+           ▼
+   ┌────────────────┐
+   │  PostgreSQL    │
+   └───────┬────────┘
+           │
+           │ Result
+           ▼
+   ┌────────────────┐
+   │  Handler       │
+   │  (transform)   │
+   └───────┬────────┘
+           │
+           │ JSON serialization
+           ▼
+   ┌────────────────┐
+   │  Response      │
+   │  {            │
+   │    success: .. │
+   │    data: ..   │
+   │  }            │
+   └───────┬────────┘
+           │
+           │ HTTP Response
+           ▼
+   Client (Browser)
+```
+
+---
+
+*These diagrams provide a visual representation of the StonkSchool backend architecture and data flows.*
