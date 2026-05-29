@@ -91,7 +91,7 @@ export default function ContestsPage() {
     { key: "equity", label: "Equity" },
   ];
 
-  const statuses: { key: Status; label: string; icon: React.ElementType }[] = [
+  const statuses: { key: Status; label: string; icon: any }[] = [
     { key: "all",      label: "All",      icon: Filter },
     { key: "live",     label: "Live",     icon: Trophy },
     { key: "upcoming", label: "Upcoming", icon: Clock },

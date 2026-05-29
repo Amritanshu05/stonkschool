@@ -28,7 +28,7 @@ function StatCard({
   iconClass = "text-green",
   iconBg = "bg-green/10",
 }: {
-  icon: React.ElementType;
+  icon: any;
   label: string;
   value: string;
   sub?: string;

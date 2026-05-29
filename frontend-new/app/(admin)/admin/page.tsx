@@ -26,7 +26,7 @@ function AdminStatCard({
   iconClass,
   iconBg,
 }: {
-  icon: React.ElementType;
+  icon: any;
   label: string;
   value: string | number;
   iconClass: string;
