@@ -50,16 +50,16 @@ function Hero() {
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 text-center">
         {/* Floating Badges */}
         <div className="absolute inset-0 pointer-events-none hidden lg:block mx-auto max-w-7xl z-20">
-           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} className="absolute left-[5%] top-[20%] glass px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md text-ink">
+           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} className="absolute left-[5%] top-[20%] px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md text-ink">
               <Globe className="h-4 w-4 text-green" /> <span className="text-sm font-semibold">Crypto</span>
            </motion.div>
-           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className="absolute right-[8%] top-[15%] glass px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md text-ink">
+           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className="absolute right-[8%] top-[15%] px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md text-ink">
               <PieChart className="h-4 w-4 text-amber" /> <span className="text-sm font-semibold">ETFs</span>
            </motion.div>
-           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="absolute left-[12%] top-[45%] glass px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md text-ink">
+           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="absolute left-[12%] top-[45%] px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md text-ink">
               <LineChart className="h-4 w-4 text-blue" /> <span className="text-sm font-semibold">Equities</span>
            </motion.div>
-           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5 }} className="absolute right-[5%] top-[40%] glass px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md text-ink">
+           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5 }} className="absolute right-[5%] top-[40%] px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md text-ink">
               <Activity className="h-4 w-4 text-red" /> <span className="text-sm font-semibold">Live Data</span>
            </motion.div>
         </div>
@@ -104,10 +104,11 @@ function Hero() {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-          className="mx-auto max-w-5xl mt-20 grid grid-cols-1 lg:grid-cols-3 gap-6 items-center"
+          className="mx-auto mt-10 lg:mt-20 w-full flex justify-center h-[180px] min-[400px]:h-[220px] sm:h-[280px] md:h-[380px] lg:h-auto overflow-visible pointer-events-none"
         >
+          <div className="flex items-center justify-center gap-6 min-w-max origin-top scale-[0.32] min-[400px]:scale-[0.4] sm:scale-[0.55] md:scale-[0.75] lg:scale-100 pointer-events-auto">
           {/* Card 1: Markets */}
-          <div className="glass rounded-2xl p-4 shadow-[0_0_40px_rgba(0,0,0,0.3)] border border-white/10 bg-gradient-to-br from-white/5 via-bg-surface/90 to-bg-surface/90 backdrop-blur-xl text-left transform lg:translate-y-8 relative overflow-hidden">
+          <div className="w-[320px] flex-shrink-0 glass rounded-2xl p-4 shadow-[0_0_40px_rgba(0,0,0,0.3)] border border-white/10 bg-gradient-to-br from-white/5 via-bg-surface/90 to-bg-surface/90 backdrop-blur-xl text-left transform lg:translate-y-8 relative overflow-hidden">
              {/* Soft inner glow */}
              <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/10 rounded-full blur-[40px] pointer-events-none" />
              <div className="flex justify-between items-center mb-4">
@@ -142,7 +143,7 @@ function Hero() {
           </div>
 
           {/* Card 2: Main Chart (Center) */}
-          <div className="glass rounded-3xl p-6 shadow-[0_0_60px_rgba(0,166,81,0.1)] border border-white/10 bg-gradient-to-br from-white/10 via-bg-surface/90 to-bg-surface/90 backdrop-blur-2xl text-left relative z-10 scale-105 overflow-hidden">
+          <div className="w-[350px] flex-shrink-0 glass rounded-3xl p-6 shadow-[0_0_60px_rgba(0,166,81,0.1)] border border-white/10 bg-gradient-to-br from-white/10 via-bg-surface/90 to-bg-surface/90 backdrop-blur-2xl text-left relative z-10 scale-105 overflow-hidden">
              {/* Soft inner glow */}
              <div className="absolute -top-32 -left-32 w-64 h-64 bg-green-500/10 rounded-full blur-[50px] pointer-events-none" />
              <div className="flex justify-between items-center mb-6">
@@ -170,7 +171,7 @@ function Hero() {
           </div>
 
           {/* Card 3: Exchange / Action */}
-          <div className="glass rounded-2xl p-4 shadow-[0_0_40px_rgba(0,0,0,0.3)] border border-white/10 bg-gradient-to-br from-white/5 via-bg-surface/90 to-bg-surface/90 backdrop-blur-xl text-left transform lg:translate-y-8 relative overflow-hidden">
+          <div className="w-[320px] flex-shrink-0 glass rounded-2xl p-4 shadow-[0_0_40px_rgba(0,0,0,0.3)] border border-white/10 bg-gradient-to-br from-white/5 via-bg-surface/90 to-bg-surface/90 backdrop-blur-xl text-left transform lg:translate-y-8 relative overflow-hidden">
              {/* Soft inner glow */}
              <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-[40px] pointer-events-none" />
              <div className="flex justify-between items-center mb-6">
@@ -207,6 +208,7 @@ function Hero() {
              </div>
              
              <Button className="w-full mt-4 glow-green bg-green/20 text-green hover:bg-green/30" variant="secondary">Preview Order</Button>
+          </div>
           </div>
         </motion.div>
 
