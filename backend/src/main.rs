@@ -67,14 +67,30 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn build_router(database: Database, config: AppConfig) -> Router {
-    let app_state = modules::AppState::new(database, config);
+    let app_state = modules::AppState::new(database, config.clone());
+
+    let cors = CorsLayer::new()
+        .allow_origin(config.frontend_url.parse::<axum::http::HeaderValue>().unwrap())
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::OPTIONS,
+        ])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::COOKIE,
+        ])
+        .allow_credentials(true);
 
     Router::new()
         .route("/health", get(health_check))
         .nest("/api/v1", api_v1_routes(app_state.clone()))
         .nest("/ws", websocket_routes(app_state.clone()))
         .layer(CompressionLayer::new())
-        .layer(CorsLayer::permissive())
+        .layer(cors)
         .layer(TraceLayer::new_for_http())
 }
 

@@ -1,0 +1,237 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap");
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────
+   TAILWIND V4 THEME — Bloomberg Neo Design System
+   ───────────────────────────────────────────── */
+
+@theme inline {
+  /* Fonts */
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  /* Dynamic color tokens (reference CSS vars so they react to .dark) */
+  --color-bg:           var(--bg);
+  --color-bg-surface:   var(--bg-surface);
+  --color-bg-elevated:  var(--bg-elevated);
+  --color-bg-subtle:    var(--bg-subtle);
+  --color-line:         var(--line);
+  --color-ink:          var(--ink);
+  --color-ink-muted:    var(--ink-muted);
+  --color-ink-faint:    var(--ink-faint);
+
+  /* Brand / accent */
+  --color-green:        var(--green);
+  --color-green-muted:  var(--green-muted);
+  --color-amber:        var(--amber);
+  --color-amber-muted:  var(--amber-muted);
+  --color-red:          var(--red);
+  --color-red-muted:    var(--red-muted);
+  --color-blue:         var(--blue);
+  --color-blue-muted:   var(--blue-muted);
+
+  /* Radius */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-2xl:  24px;
+  --radius-full: 9999px;
+}
+
+/* ─────────────────────────────────────────────
+   LIGHT MODE TOKENS
+   ───────────────────────────────────────────── */
+:root {
+  --bg:           #F8F6F1;
+  --bg-surface:   #FFFFFF;
+  --bg-elevated:  #F2EFE8;
+  --bg-subtle:    #EAE7DF;
+  --line:         #E0DDD5;
+  --ink:          #14110D;
+  --ink-muted:    #6B6660;
+  --ink-faint:    #A89F98;
+
+  --green:        #00A651;
+  --green-muted:  #E6F4EE;
+  --amber:        #D97706;
+  --amber-muted:  #FEF3C7;
+  --red:          #DC2626;
+  --red-muted:    #FEE2E2;
+  --blue:         #2563EB;
+  --blue-muted:   #DBEAFE;
+}
+
+/* ─────────────────────────────────────────────
+   DARK MODE TOKENS
+   ───────────────────────────────────────────── */
+.dark {
+  --bg:           #080C16;
+  --bg-surface:   #0E1424;
+  --bg-elevated:  #141C30;
+  --bg-subtle:    #1A2438;
+  --line:         #222D42;
+  --ink:          #E8EDF5;
+  --ink-muted:    #8A96AA;
+  --ink-faint:    #4A5568;
+
+  --green:        #00FF88;
+  --green-muted:  #002E1A;
+  --amber:        #FFAA00;
+  --amber-muted:  #2E1F00;
+  --red:          #FF4757;
+  --red-muted:    #2E0A0D;
+  --blue:         #4D9FFF;
+  --blue-muted:   #0A1A2E;
+}
+
+/* ─────────────────────────────────────────────
+   BASE STYLES
+   ───────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  border-color: var(--line);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+/* ─────────────────────────────────────────────
+   SCROLLBAR STYLING
+   ───────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+}
+
+/* ─────────────────────────────────────────────
+   SELECTION
+   ───────────────────────────────────────────── */
+::selection {
+  background: var(--green);
+  color: var(--bg);
+}
+
+/* ─────────────────────────────────────────────
+   TICKER TAPE ANIMATION
+   ───────────────────────────────────────────── */
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ticker 32s linear infinite;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* ─────────────────────────────────────────────
+   GLOW EFFECTS
+   ───────────────────────────────────────────── */
+.glow-green {
+  box-shadow: 0 0 20px color-mix(in srgb, var(--green) 30%, transparent);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px color-mix(in srgb, var(--amber) 30%, transparent);
+}
+
+/* ─────────────────────────────────────────────
+   GLASS CARD
+   ───────────────────────────────────────────── */
+.glass {
+  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+}
+
+/* ─────────────────────────────────────────────
+   CHART CONTAINER
+   ───────────────────────────────────────────── */
+.chart-container {
+  position: relative;
+  width: 100%;
+}
+
+/* ─────────────────────────────────────────────
+   GRADIENT TEXT
+   ───────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--green) 0%, var(--amber) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─────────────────────────────────────────────
+   GRID PATTERN BG
+   ───────────────────────────────────────────── */
+.grid-pattern {
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ─────────────────────────────────────────────
+   NOISE TEXTURE OVERLAY
+   ───────────────────────────────────────────── */
+.noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ─────────────────────────────────────────────
+   NUMBER MONO FONT UTILITY
+   ───────────────────────────────────────────── */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ─────────────────────────────────────────────
+   ALLOCATION SLIDER CUSTOM STYLES
+   ───────────────────────────────────────────── */
+[data-slot="slider-track"] {
+  background: var(--bg-subtle);
+}
+
+[data-slot="slider-range"] {
+  background: var(--green);
+}
+
+[data-slot="slider-thumb"] {
+  border-color: var(--green);
+  background: var(--bg-surface);
+}
