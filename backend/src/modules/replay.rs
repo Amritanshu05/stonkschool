@@ -31,6 +31,7 @@ struct CreateReplayResponse {
 struct PlaceTradeRequest {
     side: String,
     quantity: f64,
+    price: Option<f64>,
 }
 
 async fn create_replay_session(
@@ -38,11 +39,13 @@ async fn create_replay_session(
     session: SessionUser,
     Json(payload): Json<CreateReplayRequest>,
 ) -> Result<Json<CreateReplayResponse>> {
-    let from = chrono::NaiveDateTime::parse_from_str(&payload.from, "%Y-%m-%dT%H:%M:%SZ")
-        .map_err(|_| crate::error::AppError::Validation("Invalid from timestamp".to_string()))?;
+    let from = chrono::DateTime::parse_from_rfc3339(&payload.from)
+        .map_err(|_| crate::error::AppError::Validation("Invalid from timestamp".to_string()))?
+        .naive_utc();
 
-    let to = chrono::NaiveDateTime::parse_from_str(&payload.to, "%Y-%m-%dT%H:%M:%SZ")
-        .map_err(|_| crate::error::AppError::Validation("Invalid to timestamp".to_string()))?;
+    let to = chrono::DateTime::parse_from_rfc3339(&payload.to)
+        .map_err(|_| crate::error::AppError::Validation("Invalid to timestamp".to_string()))?
+        .naive_utc();
 
     let replay_id = Uuid::new_v4();
 
@@ -90,15 +93,19 @@ async fn place_demo_trade(
     .await?
     .ok_or(crate::error::AppError::NotFound)?;
 
-    // Get latest price from market_prices for this asset
-    let price_row: Option<rust_decimal::Decimal> = sqlx::query_scalar(
-        "SELECT close FROM market_prices WHERE asset_id = $1 ORDER BY timestamp DESC LIMIT 1",
-    )
-    .bind(rs.asset_id)
-    .fetch_optional(&state.db.pool)
-    .await?;
-
-    let current_price = price_row.unwrap_or_else(|| rust_decimal::Decimal::new(42000, 2));
+    let current_price = match payload.price {
+        Some(p) => rust_decimal::Decimal::from_f64_retain(p).unwrap_or_else(|| rust_decimal::Decimal::new(42000, 2)),
+        None => {
+            // Get latest price from market_prices for this asset
+            let price_row: Option<rust_decimal::Decimal> = sqlx::query_scalar(
+                "SELECT close FROM market_prices WHERE asset_id = $1 ORDER BY timestamp DESC LIMIT 1",
+            )
+            .bind(rs.asset_id)
+            .fetch_optional(&state.db.pool)
+            .await?;
+            price_row.unwrap_or_else(|| rust_decimal::Decimal::new(42000, 2))
+        }
+    };
 
     sqlx::query(
         "INSERT INTO replay_trades (replay_id, side, price, quantity, timestamp)

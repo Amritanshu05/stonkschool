@@ -10,9 +10,26 @@ use uuid::Uuid;
 use crate::modules::AppState;
 
 #[derive(Debug, Serialize)]
-struct ReplayTick {
-    timestamp: String,
-    price: f64,
+struct ReplayBar {
+    time: i64,
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct ReplayBarMessage {
+    #[serde(rename = "type")]
+    msg_type: &'static str,
+    bar: ReplayBar,
+}
+
+#[derive(Debug, Serialize)]
+struct ReplayPnlMessage {
+    #[serde(rename = "type")]
+    msg_type: &'static str,
+    value: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -20,6 +37,13 @@ struct LeaderboardUpdate {
     rank: i32,
     user: String,
     value: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct LeaderboardUpdateMessage {
+    #[serde(rename = "type")]
+    msg_type: &'static str,
+    entries: Vec<LeaderboardUpdate>,
 }
 
 pub async fn replay_handler(
@@ -73,12 +97,15 @@ async fn handle_replay_socket(mut socket: WebSocket, replay_id: Uuid, state: App
     #[derive(sqlx::FromRow)]
     struct PriceData {
         timestamp: chrono::NaiveDateTime,
+        open: rust_decimal::Decimal,
+        high: rust_decimal::Decimal,
+        low: rust_decimal::Decimal,
         close: rust_decimal::Decimal,
     }
     
     let prices = match sqlx::query_as::<_, PriceData>(
         r#"
-        SELECT timestamp, close
+        SELECT timestamp, open, high, low, close
         FROM market_prices
         WHERE asset_id = $1 AND timestamp BETWEEN $2 AND $3
         ORDER BY timestamp ASC
@@ -99,14 +126,60 @@ async fn handle_replay_socket(mut socket: WebSocket, replay_id: Uuid, state: App
     
     // Stream price data
     for price in prices {
-        let tick = ReplayTick {
-            timestamp: price.timestamp.to_string(),
-            price: price.close.to_string().parse().unwrap_or(0.0),
+        let unix_seconds = price.timestamp.and_utc().timestamp();
+        let open_f = price.open.to_string().parse().unwrap_or(0.0);
+        let high_f = price.high.to_string().parse().unwrap_or(0.0);
+        let low_f = price.low.to_string().parse().unwrap_or(0.0);
+        let close_f = price.close.to_string().parse().unwrap_or(0.0);
+
+        let bar_msg = ReplayBarMessage {
+            msg_type: "bar",
+            bar: ReplayBar {
+                time: unix_seconds,
+                open: open_f,
+                high: high_f,
+                low: low_f,
+                close: close_f,
+            },
         };
         
-        let msg = serde_json::to_string(&tick).unwrap();
-        
+        let msg = serde_json::to_string(&bar_msg).unwrap();
         if socket.send(Message::Text(msg)).await.is_err() {
+            tracing::info!("Client disconnected");
+            break;
+        }
+
+        // Fetch current trades to calculate session P&L
+        let trades = sqlx::query!(
+            "SELECT side, price, quantity FROM replay_trades WHERE replay_id = $1",
+            replay_id
+        )
+        .fetch_all(&state.db.pool)
+        .await
+        .unwrap_or_default();
+
+        let mut cash = 0.0;
+        let mut position = 0.0;
+        for t in trades {
+            let p = t.price.to_string().parse::<f64>().unwrap_or(0.0);
+            let q = t.quantity.to_string().parse::<f64>().unwrap_or(0.0);
+            if t.side == "buy" {
+                cash -= p * q;
+                position += q;
+            } else if t.side == "sell" {
+                cash += p * q;
+                position -= q;
+            }
+        }
+        let pnl_value = cash + position * close_f;
+
+        let pnl_msg = ReplayPnlMessage {
+            msg_type: "pnl",
+            value: pnl_value,
+        };
+
+        let msg_pnl = serde_json::to_string(&pnl_msg).unwrap();
+        if socket.send(Message::Text(msg_pnl)).await.is_err() {
             tracing::info!("Client disconnected");
             break;
         }
@@ -170,7 +243,12 @@ async fn handle_contest_socket(mut socket: WebSocket, contest_id: Uuid, state: A
             })
             .collect();
         
-        let msg = serde_json::to_string(&updates).unwrap();
+        let update_msg = LeaderboardUpdateMessage {
+            msg_type: "leaderboard_update",
+            entries: updates,
+        };
+        
+        let msg = serde_json::to_string(&update_msg).unwrap();
         
         if socket.send(Message::Text(msg)).await.is_err() {
             tracing::info!("Client disconnected");

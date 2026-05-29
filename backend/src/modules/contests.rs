@@ -32,6 +32,12 @@ struct ContestListItem {
 }
 
 #[derive(Debug, Serialize)]
+struct ContestRules {
+    max_assets: i32,
+    min_allocation_pct: i32,
+}
+
+#[derive(Debug, Serialize)]
 struct ContestDetails {
     id: Uuid,
     title: String,
@@ -42,6 +48,7 @@ struct ContestDetails {
     end_time: NaiveDateTime,
     status: String,
     assets: Vec<AssetInfo>,
+    rules: ContestRules,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -72,6 +79,8 @@ struct ContestStatusResponse {
     status: String,
     current_rank: Option<i32>,
     portfolio_value: Option<Decimal>,
+    joined: bool,
+    locked: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -157,6 +166,10 @@ async fn get_contest_details(
         end_time: contest.end_time,
         status: contest.status,
         assets,
+        rules: ContestRules {
+            max_assets: 5,
+            min_allocation_pct: 10,
+        },
     }))
 }
 
@@ -345,10 +358,28 @@ async fn get_contest_status(
     .await?
     .ok_or(AppError::NotFound)?;
 
+    #[derive(sqlx::FromRow)]
+    struct ParticipantInfo {
+        locked_at: Option<NaiveDateTime>,
+    }
+
+    let participant = sqlx::query_as::<_, ParticipantInfo>(
+        "SELECT locked_at FROM contest_participants WHERE contest_id = $1 AND user_id = $2",
+    )
+    .bind(contest_id)
+    .bind(session.user_id)
+    .fetch_optional(&state.db.pool)
+    .await?;
+
+    let joined = participant.is_some();
+    let locked = participant.as_ref().map(|p| p.locked_at.is_some()).unwrap_or(false);
+
     Ok(Json(ContestStatusResponse {
         status: result.status,
         current_rank: result.current_rank,
         portfolio_value: result.portfolio_value,
+        joined,
+        locked,
     }))
 }
 
