@@ -24,8 +24,14 @@ export default function ReplayHubPage() {
   const router = useRouter();
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [assetType, setAssetType] = useState<AssetType>("all");
-  const [from, setFrom] = useState("2024-01-01");
-  const [to, setTo] = useState("2024-01-31");
+  const [from, setFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    return d.toISOString().split("T")[0];
+  });
+  const [to, setTo] = useState(() => {
+    return new Date().toISOString().split("T")[0];
+  });
 
   const { data: assets, isLoading } = useQuery({
     queryKey: ["assets", assetType],

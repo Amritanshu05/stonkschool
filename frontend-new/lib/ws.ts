@@ -26,6 +26,17 @@ export function useWebSocket(path: string, options: UseWebSocketOptions = {}) {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
+  // Keep latest callbacks in refs to avoid reconnecting when they change
+  const onMessageRef = useRef(onMessage);
+  const onConnectRef = useRef(onConnect);
+  const onDisconnectRef = useRef(onDisconnect);
+
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onConnectRef.current = onConnect;
+    onDisconnectRef.current = onDisconnect;
+  });
+
   const connect = useCallback(() => {
     if (!enabled || !mountedRef.current) return;
 
@@ -33,14 +44,14 @@ export function useWebSocket(path: string, options: UseWebSocketOptions = {}) {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      if (mountedRef.current) onConnect?.();
+      if (mountedRef.current) onConnectRef.current?.();
     };
 
     ws.onmessage = (event) => {
       if (!mountedRef.current) return;
       try {
         const data = JSON.parse(event.data as string) as WSMessage;
-        onMessage?.(data);
+        onMessageRef.current?.(data);
       } catch {
         // ignore parse errors
       }
@@ -48,7 +59,7 @@ export function useWebSocket(path: string, options: UseWebSocketOptions = {}) {
 
     ws.onclose = () => {
       if (!mountedRef.current) return;
-      onDisconnect?.();
+      onDisconnectRef.current?.();
       // Auto-reconnect
       reconnectTimer.current = setTimeout(() => {
         if (mountedRef.current) connect();
@@ -58,7 +69,7 @@ export function useWebSocket(path: string, options: UseWebSocketOptions = {}) {
     ws.onerror = () => {
       ws.close();
     };
-  }, [path, enabled, onMessage, onConnect, onDisconnect, reconnectDelay]);
+  }, [path, enabled, reconnectDelay]);
 
   useEffect(() => {
     mountedRef.current = true;

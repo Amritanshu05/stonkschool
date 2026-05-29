@@ -16,11 +16,14 @@ type Status = "all" | "upcoming" | "live" | "ended";
 const TRACK_LABELS: Record<string, string> = { crypto: "Crypto", etf: "ETF", equity: "Equity" };
 
 function ContestCard({ contest }: { contest: Awaited<ReturnType<typeof api.contests.list>>[number] }) {
-  const statusConfig = {
-    live:     { label: "Live",     variant: "green" as const, dot: true  },
-    upcoming: { label: "Upcoming", variant: "amber" as const, dot: false },
-    ended:    { label: "Ended",    variant: "outline" as const, dot: false },
-  }[contest.status];
+  const statusMap: Record<string, { label: string; variant: "green" | "amber" | "outline" | "default"; dot: boolean }> = {
+    live:              { label: "Live",          variant: "green" as const,   dot: true  },
+    upcoming:          { label: "Upcoming",      variant: "amber" as const,   dot: false },
+    joining_open:      { label: "Upcoming",      variant: "amber" as const,   dot: false },
+    allocation_locked: { label: "Locked",        variant: "amber" as const,   dot: false },
+    ended:             { label: "Ended",         variant: "outline" as const, dot: false },
+  };
+  const statusConfig = statusMap[contest.status] ?? { label: contest.status, variant: "default" as const, dot: false };
 
   const trackConfig = {
     crypto: { variant: "green" as const },

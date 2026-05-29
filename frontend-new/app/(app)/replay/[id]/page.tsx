@@ -131,7 +131,7 @@ export default function ReplaySessionPage() {
   // ─── Trade ─────────────────────────────────────────────────────────────────
   const trade = useMutation({
     mutationFn: (side: "buy" | "sell") =>
-      api.replay.trade(id, { side, quantity: qty }),
+      api.replay.trade(id, { side, quantity: qty, price: currentPrice ?? undefined }),
     onSuccess: (_, side) => {
       toast.success(`${side === "buy" ? "Bought" : "Sold"} ${qty} units`);
     },

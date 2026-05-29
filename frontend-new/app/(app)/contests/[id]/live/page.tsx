@@ -80,43 +80,49 @@ export default function ContestLivePage() {
       </div>
 
       {/* My status card */}
-      {status && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              label: "Your Rank",
-              value: `#${status.current_rank}`,
-              icon: Trophy,
-              color: "text-amber",
-              bg: "bg-amber/10",
-            },
-            {
-              label: "Portfolio Value",
-              value: formatCurrency(status.portfolio_value, "V", true),
-              icon: TrendingUp,
-              color: "text-green",
-              bg: "bg-green/10",
-            },
-            {
-              label: "P&L",
-              value: formatCurrency(status.portfolio_value - 100_000, "V", true),
-              icon: status.portfolio_value >= 100_000 ? TrendingUp : TrendingDown,
-              color: getPnlColor(status.portfolio_value - 100_000),
-              bg: status.portfolio_value >= 100_000 ? "bg-green/10" : "bg-red/10",
-            },
-          ].map((s) => (
-            <Card key={s.label} className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${s.bg}`}>
-                <s.icon className={`h-5 w-5 ${s.color}`} />
-              </div>
-              <div>
-                <p className="text-xs text-ink-faint">{s.label}</p>
-                <p className={`num text-lg font-bold ${s.color}`}>{s.value}</p>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      {status && (() => {
+        const userRank = status.current_rank ? `#${status.current_rank}` : "—";
+        const userPortfolioValue = status.portfolio_value ?? 100_000;
+        const pnl = userPortfolioValue - 100_000;
+        
+        return (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                label: "Your Rank",
+                value: userRank,
+                icon: Trophy,
+                color: "text-amber",
+                bg: "bg-amber/10",
+              },
+              {
+                label: "Portfolio Value",
+                value: formatCurrency(userPortfolioValue, "V", true),
+                icon: TrendingUp,
+                color: "text-green",
+                bg: "bg-green/10",
+              },
+              {
+                label: "P&L",
+                value: formatCurrency(pnl, "V", true),
+                icon: pnl >= 0 ? TrendingUp : TrendingDown,
+                color: getPnlColor(pnl),
+                bg: pnl >= 0 ? "bg-green/10" : "bg-red/10",
+              },
+            ].map((s) => (
+              <Card key={s.label} className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${s.bg}`}>
+                  <s.icon className={`h-5 w-5 ${s.color}`} />
+                </div>
+                <div>
+                  <p className="text-xs text-ink-faint">{s.label}</p>
+                  <p className={`num text-lg font-bold ${s.color}`}>{s.value}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Podium */}
       {topThree.length > 0 && (

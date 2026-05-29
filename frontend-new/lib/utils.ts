@@ -5,17 +5,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(
-  amount: number,
+  amount: number | null | undefined,
   currency = "VCOIN",
   compact = false
 ): string {
+  const val = amount ?? 0;
   if (compact) {
-    if (Math.abs(amount) >= 1_000_000)
-      return `${(amount / 1_000_000).toFixed(1)}M ${currency}`;
-    if (Math.abs(amount) >= 1_000)
-      return `${(amount / 1_000).toFixed(1)}K ${currency}`;
+    if (Math.abs(val) >= 1_000_000)
+      return `${(val / 1_000_000).toFixed(1)}M ${currency}`;
+    if (Math.abs(val) >= 1_000)
+      return `${(val / 1_000).toFixed(1)}K ${currency}`;
   }
-  return `${amount.toLocaleString("en-IN")} ${currency}`;
+  return `${val.toLocaleString("en-IN")} ${currency}`;
 }
 
 export function formatPercent(value: number, decimals = 2): string {

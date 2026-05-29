@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -38,6 +38,31 @@ export default function ContestDetailPage() {
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [joined, setJoined] = useState(false);
   const [locked, setLocked] = useState(false);
+
+  const { data: statusData } = useQuery({
+    queryKey: ["contest-status", id],
+    queryFn: () => api.contests.status(id),
+    enabled: !!contest,
+  });
+
+  useEffect(() => {
+    if (statusData) {
+      setJoined(statusData.joined);
+      setLocked(statusData.locked);
+
+      if (statusData.joined && !statusData.locked && Object.keys(allocations).length === 0 && contest) {
+        // Init equal allocation
+        const equal = Math.floor(100 / contest.assets.length);
+        const init = Object.fromEntries(
+          contest.assets.map((a, i) => [
+            a.id,
+            i === 0 ? 100 - equal * (contest.assets.length - 1) : equal,
+          ])
+        );
+        setAllocations(init);
+      }
+    }
+  }, [statusData, contest]);
 
   const joinMutation = useMutation({
     mutationFn: () => api.contests.join(id),
@@ -164,7 +189,30 @@ export default function ContestDetailPage() {
       </Card>
 
       {/* Join / Allocate */}
-      {!joined ? (
+      {(contest.status === "live" || contest.status === "ended") ? (
+        <Card className="text-center py-8">
+          <div className="flex flex-col items-center justify-center">
+            {contest.status === "live" ? (
+              <div className="h-3 w-3 rounded-full bg-green animate-pulse mb-3" />
+            ) : (
+              <Trophy className="h-10 w-10 text-amber mb-3" />
+            )}
+            <p className="font-semibold text-ink">
+              {contest.status === "live" ? "Contest is Live!" : "Contest Has Ended"}
+            </p>
+            <p className="text-sm text-ink-muted mt-1 mb-5 max-w-md">
+              {joined
+                ? "You are a participant. Follow real-time progress on the leaderboard."
+                : "This contest is no longer accepting new participants."}
+            </p>
+            <Button
+              onClick={() => router.push(`/contests/${id}/live`)}
+            >
+              {contest.status === "live" ? "Go to Live Leaderboard 🚀" : "View Final Standings 🏆"}
+            </Button>
+          </div>
+        </Card>
+      ) : !joined ? (
         <Card>
           <CardHeader>
             <CardTitle>Join Contest</CardTitle>

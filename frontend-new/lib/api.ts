@@ -26,7 +26,20 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
-    throw new ApiError(res.status, text);
+    let message = text;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object") {
+        if (parsed.message) {
+          message = parsed.message;
+        } else if (parsed.error) {
+          message = parsed.error;
+        }
+      }
+    } catch {
+      // not JSON
+    }
+    throw new ApiError(res.status, message);
   }
 
   // 204 No Content
@@ -92,7 +105,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    trade: (replayId: string, body: { side: "buy" | "sell"; quantity: number }) =>
+    trade: (replayId: string, body: { side: "buy" | "sell"; quantity: number; price?: number }) =>
       apiFetch<{ success: boolean }>(`/replay/${replayId}/trade`, {
         method: "POST",
         body: JSON.stringify(body),
@@ -139,8 +152,10 @@ export const api = {
     status: (id: string) =>
       apiFetch<{
         status: string;
-        current_rank: number;
-        portfolio_value: number;
+        current_rank: number | null;
+        portfolio_value: number | null;
+        joined: boolean;
+        locked: boolean;
       }>(`/contests/${id}/status`),
     results: (id: string) =>
       apiFetch<{ rank: number; final_value: number; payout: number }>(
