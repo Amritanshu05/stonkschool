@@ -146,6 +146,103 @@ function RecentTransactions() {
   );
 }
 
+// ─── Your Contests ────────────────────────────────────────────────────────────
+function YourContests() {
+  const { data: myContests, isLoading } = useQuery({
+    queryKey: ["my-contests"],
+    queryFn: api.users.myContests,
+    refetchInterval: 15_000,
+  });
+
+  const statusMap: Record<string, { label: string; variant: "green" | "amber" | "outline" | "default"; dot: boolean }> = {
+    live:              { label: "Live",          variant: "green" as const,   dot: true  },
+    upcoming:          { label: "Upcoming",      variant: "amber" as const,   dot: false },
+    joining_open:      { label: "Upcoming",      variant: "amber" as const,   dot: false },
+    allocation_locked: { label: "Locked",        variant: "amber" as const,   dot: false },
+    ended:             { label: "Ended",         variant: "outline" as const, dot: false },
+  };
+
+  const TRACK_LABELS: Record<string, string> = { crypto: "Crypto", etf: "ETF", equity: "Equity" };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-amber" />
+          Your Contests
+        </CardTitle>
+        <Link href="/contests" className="text-xs text-green hover:underline flex items-center gap-1">
+          Explore more <ArrowRight className="h-3 w-3" />
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <div key={i} className="flex items-center justify-between py-3 border-b border-line last:border-0">
+                <div className="space-y-1">
+                  <div className="h-4 w-40 rounded bg-bg-subtle animate-pulse" />
+                  <div className="h-3.5 w-24 rounded bg-bg-subtle animate-pulse" />
+                </div>
+                <div className="h-6 w-16 rounded bg-bg-subtle animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : !myContests?.length ? (
+          <div className="text-center py-6 flex flex-col items-center gap-2">
+            <p className="text-sm text-ink-muted">You haven&apos;t joined any contests yet.</p>
+            <Link href="/contests">
+              <Button variant="outline" size="sm">
+                Browse Contests
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-line">
+            {myContests.slice(0, 5).map((c) => {
+              const statusConfig = statusMap[c.status] ?? { label: c.status, variant: "default" as const, dot: false };
+              let linkHref = `/contests/${c.contest_id}`;
+              if (c.status === "live") {
+                linkHref = `/contests/${c.contest_id}/live`;
+              } else if (c.status === "ended") {
+                linkHref = `/contests/${c.contest_id}/results`;
+              }
+
+              return (
+                <div key={c.contest_id} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0 gap-4">
+                  <div className="min-w-0">
+                    <Link href={linkHref} className="font-semibold text-sm text-ink hover:text-green transition-colors truncate block">
+                      {c.title}
+                    </Link>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <Badge variant="default" size="sm" className="bg-bg-subtle text-ink-muted">
+                        {TRACK_LABELS[c.track] ?? c.track}
+                      </Badge>
+                      <Badge variant={statusConfig.variant} size="sm" dot={statusConfig.dot}>
+                        {statusConfig.label}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {c.current_rank != null && (
+                      <p className="text-xs text-ink-muted font-medium">Rank #{c.current_rank}</p>
+                    )}
+                    {c.portfolio_value != null && (
+                      <p className="num text-sm font-bold text-ink mt-0.5">
+                        {formatCurrency(c.portfolio_value, "V", true)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { data: user, isLoading: userLoading } = useQuery({
@@ -224,9 +321,10 @@ export default function DashboardPage() {
 
       {/* Main grid */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left: Quick Actions + Transactions */}
+        {/* Left: Quick Actions + Your Contests + Transactions */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <QuickActions />
+          <YourContests />
           <RecentTransactions />
         </div>
 

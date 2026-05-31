@@ -50,7 +50,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const api = {
   auth: {
-    googleUrl: `${API_URL}/auth/google`,
+    googleUrl: `${API_URL}/api/v1/auth/google`,
     logout: () => apiFetch<{ success: boolean }>("/auth/logout", { method: "POST" }),
   },
 
@@ -64,6 +64,20 @@ export const api = {
         wallet_balance: number;
         stats: { contests_played: number; contests_won: number };
       }>("/users/me"),
+    myContests: () =>
+      apiFetch<
+        Array<{
+          contest_id: string;
+          title: string;
+          track: string;
+          status: string;
+          start_time: string;
+          end_time: string;
+          locked_at: string | null;
+          current_rank: number | null;
+          portfolio_value: number | null;
+        }>
+      >("/users/me/contests"),
   },
 
   // ─── Wallet ─────────────────────────────────────────────────────────────
