@@ -7,9 +7,6 @@
 **/*.rs.bk
 *.pdb
 
-# SQLx offline data
-.sqlx/
-
 # IDE
 .idea/
 .vscode/

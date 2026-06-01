@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT side, price, quantity FROM replay_trades WHERE replay_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "side",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 2,
+        "name": "quantity",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "908dfa53f932b3d4e07c9a2980073e323e6a43fc296555afd0f4a7436b388686"
+}
