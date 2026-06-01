@@ -1,7 +1,7 @@
 # ==============================================================================
 # Builder Stage
 # ==============================================================================
-FROM oven/bun:1.1-slim AS builder
+FROM oven/bun:1.3.14-slim AS builder
 WORKDIR /app
 
 # Disable Next.js telemetry
