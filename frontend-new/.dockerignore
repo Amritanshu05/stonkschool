@@ -1,0 +1,10 @@
+node_modules
+.next
+.env
+*.log
+.npm
+.yarn
+.bun
+dist
+build
+.tsbuildinfo

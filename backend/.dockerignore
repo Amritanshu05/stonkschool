@@ -1,0 +1,8 @@
+target
+.env
+*.err
+*.log
+postgresql
+Documents
+frontend
+frontend-new
