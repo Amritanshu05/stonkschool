@@ -89,7 +89,7 @@ async fn google_auth_callback(
         )
     };
 
-    let redirect_url = format!("{}/dashboard", state.config.frontend_url);
+    let redirect_url = format!("{}/dashboard?session_id={}", state.config.frontend_url, session_id);
     let response = (
         [(
             header::SET_COOKIE,

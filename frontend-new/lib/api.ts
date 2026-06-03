@@ -3,6 +3,19 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3000";
 
 export { API_URL, WS_URL };
 
+// Capture session_id from URL if present (OAuth callback)
+if (typeof window !== "undefined") {
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get("session_id");
+  if (sessionId) {
+    localStorage.setItem("stonkschool_session", sessionId);
+    // Clean up the URL
+    params.delete("session_id");
+    const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : "") + window.location.hash;
+    window.history.replaceState({}, "", newUrl);
+  }
+}
+
 class ApiError extends Error {
   constructor(
     public status: number,
@@ -15,11 +28,14 @@ class ApiError extends Error {
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_URL}/api/v1${path}`;
+  const token = typeof window !== "undefined" ? localStorage.getItem("stonkschool_session") : null;
+  
   const res = await fetch(url, {
     ...init,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });
@@ -51,7 +67,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   auth: {
     googleUrl: `${API_URL}/api/v1/auth/google`,
-    logout: () => apiFetch<{ success: boolean }>("/auth/logout", { method: "POST" }),
+    logout: () => {
+      if (typeof window !== "undefined") localStorage.removeItem("stonkschool_session");
+      return apiFetch<{ success: boolean }>("/auth/logout", { method: "POST" });
+    },
   },
 
   // ─── Users ──────────────────────────────────────────────────────────────

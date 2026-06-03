@@ -27,19 +27,33 @@ impl FromRequestParts<AppState> for SessionUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        // Extract the Cookie header
-        let cookie_header = parts
+        // First try to extract from Authorization: Bearer <token>
+        let auth_header = parts
             .headers
-            .get(axum::http::header::COOKIE)
+            .get(axum::http::header::AUTHORIZATION)
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
+            
+        let mut session_id_str = if auth_header.starts_with("Bearer ") {
+            Some(auth_header.trim_start_matches("Bearer ").trim().to_string())
+        } else {
+            None
+        };
 
-        // Find our session cookie
-        let session_id_str = cookie_header
-            .split(';')
-            .filter_map(|s| Cookie::parse(s.trim()).ok())
-            .find(|c| c.name() == SESSION_COOKIE_NAME)
-            .map(|c| c.value().to_string());
+        // If not found, try the Cookie header
+        if session_id_str.is_none() {
+            let cookie_header = parts
+                .headers
+                .get(axum::http::header::COOKIE)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+
+            session_id_str = cookie_header
+                .split(';')
+                .filter_map(|s| Cookie::parse(s.trim()).ok())
+                .find(|c| c.name() == SESSION_COOKIE_NAME)
+                .map(|c| c.value().to_string());
+        }
 
         let session_id_str = match session_id_str {
             Some(s) => s,
