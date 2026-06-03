@@ -69,8 +69,9 @@ async fn main() -> anyhow::Result<()> {
 fn build_router(database: Database, config: AppConfig) -> Router {
     let app_state = modules::AppState::new(database, config.clone());
 
+    let frontend_url = config.frontend_url.trim_end_matches('/');
     let cors = CorsLayer::new()
-        .allow_origin(config.frontend_url.parse::<axum::http::HeaderValue>().unwrap_or_else(|_| "*".parse().unwrap()))
+        .allow_origin(frontend_url.parse::<axum::http::HeaderValue>().unwrap_or_else(|_| "*".parse().unwrap()))
         .allow_methods([
             axum::http::Method::GET,
             axum::http::Method::POST,
