@@ -71,13 +71,23 @@ async fn google_auth_callback(
     let user = get_or_create_user(&state, &user_info).await?;
     let session_id = create_session(&state, user.id).await?;
 
-    // Build Set-Cookie header: HttpOnly, SameSite=Lax, 30 days
-    let cookie_value = format!(
-        "{}={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
-        SESSION_COOKIE_NAME,
-        session_id,
-        30 * 24 * 3600,
-    );
+    // Build Set-Cookie header: HttpOnly, SameSite=None; Secure (in prod) or SameSite=Lax (in dev)
+    let is_secure = state.config.frontend_url.starts_with("https://");
+    let cookie_value = if is_secure {
+        format!(
+            "{}={}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age={}",
+            SESSION_COOKIE_NAME,
+            session_id,
+            30 * 24 * 3600,
+        )
+    } else {
+        format!(
+            "{}={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
+            SESSION_COOKIE_NAME,
+            session_id,
+            30 * 24 * 3600,
+        )
+    };
 
     let redirect_url = format!("{}/dashboard", state.config.frontend_url);
     let response = (
@@ -103,10 +113,18 @@ async fn logout(
         .await?;
 
     // Clear the cookie by setting Max-Age=0
-    let cookie_value = format!(
-        "{}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
-        SESSION_COOKIE_NAME
-    );
+    let is_secure = state.config.frontend_url.starts_with("https://");
+    let cookie_value = if is_secure {
+        format!(
+            "{}=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0",
+            SESSION_COOKIE_NAME
+        )
+    } else {
+        format!(
+            "{}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+            SESSION_COOKIE_NAME
+        )
+    };
 
     let response = (
         [(
